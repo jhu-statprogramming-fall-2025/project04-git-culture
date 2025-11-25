@@ -8,7 +8,7 @@ index,observed,location_details,county,state,season,title,latitude,longitude,dat
 index,YEAR,SEASON,STATE,COUNTY,NEAREST_TOWN,NEAREST_ROAD,OBSERVED,ALSO_NOTICED,OTHER_WITNESSES,OTHER_STORIES,TIME_AND_CONDITIONS,ENVIRONMENT,REPORT_NUMBER,REPORT_CLASS,LOCATION_DETAILS,MONTH,DATE,A_&_G_References
 
 ==> countystatepop_20-24.csv <==
-﻿,,,,,,,,,,,,,,,,
+﻿county,state,annimal_v_cumulative,total_pop_change,natural_change,births,deaths,total,international,domestic
 
 ==> nuforc_ufo_us_state_counts.csv <==
 Location.State,sightings
@@ -20,5 +20,4 @@ Location.State,year,sightings
 Location.City,Location.State,Location.Country,Data.Shape,Data.Encounter duration,Data.Description excerpt,Location.Coordinates.Latitude,Location.Coordinates.Longitude,Dates.Sighted.Year,Dates.Sighted.Month,Date.Sighted.Day,Dates.Sighted.Hour,Dates.Sighted.Minute,Dates.Documented.Year,Dates.Documented.Month,Dates.Documented.Day,lat,lon,sighted_date,year
 
 ==> weather_data.csv <==
-version https://git-lfs.github.com/spec/v1
-
+Location,Date_Time,Temperature_C,Humidity_pct,Precipitation_mm,Wind_Speed_kmh
