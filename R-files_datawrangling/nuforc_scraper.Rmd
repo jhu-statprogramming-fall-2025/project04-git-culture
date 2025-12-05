@@ -1,0 +1,47 @@
+---
+title: "Ufo Scraper"
+author: "Lulu Singer"
+date: "12/4/2025"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+  pdf_document:
+    toc: yes
+    fig_caption: True
+    df_print: kable
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+#Load in packages
+library(rvest)
+library(stringr)
+```
+
+# Scrape data from nuforc.org
+urls follow the pattern https://nuforc.org/subndx/?id=eYYYYMM
+This probably isn't polite... maybe do 1 year at a time so the website doesn't get mad LOL
+```{r}
+# years you want to scrape
+years <- 2020:2021
+# months you want to scrape
+months <- str_pad(1:12, width = 2, pad = '0')
+i <- 0
+for (Y in years){
+  for (M in months){
+    i <- i + 1
+    url <- paste0("https://nuforc.org/subndx/?id=e",Y,M)
+    # read html
+    temp_html <- read_html(url)
+    # extract table (note: does not get hyperlinks)
+    temp_table <- html_table(temp_html)[[1]]
+    # join with other tables 
+    if (i == 1) ufo_data <- temp_table else ufo_data <- rbind(ufo_data, temp_table)
+  }
+}
+```

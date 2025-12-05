@@ -1,0 +1,448 @@
+---
+title: "County Health Data"
+author: "Ananya Bhaktaram"
+format: html
+editor: visual
+---
+
+### Function to extract years of potential life lost rate (YPLL) from Robert Wood Johnson Foundation County Health Rankings data.
+
+The data is stored slightly differently based on year, for the 2010 data it's stored in the "Measure Data" sheet, between 2011-2023 its stored in the "Ranked Measure Data" and for 2024-2025 its stored as "Select Measure Data". Given that the measures change across time a little bit, I decided to just extract California County data, since that's what we pulled for the weather data and keep it restricted just to the YPLL rate and it's confidence intervals per year.
+
+```{r}
+library(readxl)
+library(dplyr)
+library(purrr)
+```
+
+```{r}
+# Set working directory
+setwd("C:/Users/anany/OneDrive/Hopkins/PhD/Year 3/Statistical Programming/Final Project/biostats777-final-project-git-culture")
+
+# Read 2020 data and examine sheet structure
+sheets <- excel_sheets("county health data/2020 County Health Rankings California Data.xlsx")
+print(sheets)
+
+# Look at structure within the Ranked Measure Data for 2020
+raw_data2020 <-read_excel("county health data/2020 County Health Rankings California Data.xlsx",
+                          sheet = "Ranked Measure Data")
+# Look at structure
+dim(raw_data2020)
+print(names(raw_data2020))
+
+# Look at first 5 rows and first 10 columns
+print(raw_data2020[1:5, 1:10])
+
+# Merged Column structure in excel is preventing extracting columns correctly
+# Look at the first few rows to explore the structure
+print(raw_data2020[1:5, 1:8])
+
+# Look at just the premature death section
+print(raw_data2020[1:10, 1:8])
+```
+
+```{r}
+# Extract 2020 data only
+ypll_2020 <- raw_data2020 %>%
+  # Remove the first row (which contains headers-- which was causing extraction issues earlier)
+  slice(-1) %>%
+  # Select the columns and rename
+  select(
+    FIPS = ...1,
+    State = ...2,
+    County = ...3,
+    Deaths = `Premature death`,
+    YPLL_Rate = ...5,
+    CI_Low = ...6,
+    CI_High = ...7
+  ) %>%
+  # Add year
+  mutate(Year = 2020) %>%
+  # Convert data types
+  mutate(
+    FIPS = as.character(FIPS),
+    YPLL_Rate = as.numeric(YPLL_Rate),
+    CI_Low = as.numeric(CI_Low),
+    CI_High = as.numeric(CI_High)
+  ) %>%
+  # Remove rows with missing YPLL data or missing county names
+  filter(!is.na(YPLL_Rate) & !is.na(County)) %>%
+  # Select only the columns we need for final output
+  select(Year, FIPS, State, County, YPLL_Rate, CI_Low, CI_High)
+
+# Check the result
+print(head(ypll_2020))
+```
+
+```{r}
+# Function to extract YPLL data for all years
+extract_ypll<- function(file_path, year) {
+  
+  # The sheet name containing the YPLL data varies by year.Need to specify in order to ensure correct extraction
+  sheet_name <- case_when(
+    year == 2010 ~ "Measure Data",
+    year >= 2011 & year <= 2023 ~ "Ranked Measure Data",
+    year >= 2024 ~ "Select Measure Data",
+    TRUE ~ NA_character_
+  )
+  
+tryCatch({
+    # Read the raw data
+    raw_data <- read_excel(file_path, sheet = sheet_name)
+    
+    cat("Processing", year, "- Dimensions:", dim(raw_data)[1], "x", dim(raw_data)[2], "\n")
+    
+    # Identify column positions based on first row
+    first_row <- as.character(raw_data[1, ])
+    
+    # Find column positions by looking for key values in the first row
+    fips_col <- which(first_row == "FIPS")[1]
+    state_col <- which(first_row == "State")[1]
+    county_col <- which(first_row == "County")[1]
+    
+    # Find Deaths column (might be "Deaths" or "# Deaths")
+    deaths_col <- which(grepl("Deaths", first_row, ignore.case = TRUE))[1]
+    
+    # Find YPLL Rate column
+    ypll_col <- which(grepl("Years of Potential Life Lost Rate|YPLL Rate", first_row, ignore.case = TRUE))[1]
+    
+    # Find CI columns
+    ci_low_col <- which(grepl("95% CI.*Low|CI.*Low", first_row, ignore.case = TRUE))[1]
+    ci_high_col <- which(grepl("95% CI.*High|CI.*High", first_row, ignore.case = TRUE))[1]
+    
+    # Report what we found
+    cat("Found columns - FIPS:", fips_col, "State:", state_col, "County:", county_col, 
+        "Deaths:", deaths_col, "YPLL:", ypll_col, "CI_Low:", ci_low_col, "CI_High:", ci_high_col, "\n")
+    
+    # Check all specified columns have been pulled
+    if(is.na(fips_col) || is.na(state_col) || is.na(county_col) || is.na(ypll_col)) {
+      warning(paste("Missing required columns in", year))
+      cat("First row contents:", paste(first_row[1:min(10, length(first_row))], collapse = " | "), "\n")
+      return(NULL)
+    }
+    
+     # Extract the data using the identified column positions
+    result <- raw_data %>%
+      # Remove the first row (headers)
+      slice(-1) %>%
+      # Select columns by position and rename
+      select(
+        FIPS = all_of(fips_col),
+        State = all_of(state_col),
+        County = all_of(county_col),
+        Deaths = if(!is.na(deaths_col)) all_of(deaths_col) else NULL,
+        YPLL_Rate = all_of(ypll_col),
+        CI_Low = if(!is.na(ci_low_col)) all_of(ci_low_col) else NULL,
+        CI_High = if(!is.na(ci_high_col)) all_of(ci_high_col) else NULL
+      ) %>%
+      # Add year
+      mutate(Year = year) %>%
+      # Convert data types
+      mutate(
+        FIPS = as.character(FIPS),
+        YPLL_Rate = as.numeric(YPLL_Rate),
+        CI_Low = if("CI_Low" %in% names(.)) as.numeric(CI_Low) else NA_real_,
+        CI_High = if("CI_High" %in% names(.)) as.numeric(CI_High) else NA_real_
+      ) %>%
+      # Remove rows with missing YPLL data or missing county names
+      filter(!is.na(YPLL_Rate) & !is.na(County)) %>%
+      # Select only the columns we need for final output
+      select(Year, FIPS, State, County, YPLL_Rate, CI_Low, CI_High)
+    
+    # Add missing CI columns if they don't exist
+    if(!"CI_Low" %in% names(result)) {
+      result$CI_Low <- NA_real_
+    }
+    if(!"CI_High" %in% names(result)) {
+      result$CI_High <- NA_real_
+    }
+
+    cat("Successfully extracted", nrow(result), "counties for", year, "\n")
+    return(result)
+    
+  }, error = function(e) {
+    warning(paste("Error reading", basename(file_path), "for year", year, ":", e$message))
+    return(NULL)
+  })
+}
+
+```
+
+```{r}
+setwd("C:/Users/anany/OneDrive/Hopkins/PhD/Year 3/Statistical Programming/Final Project/biostats777-final-project-git-culture")
+
+# Test extraction function on 2025 data
+test_data <- extract_ypll("county health data/2025 County Health Rankings California Data.xlsx", 2025)
+
+# Check 
+head(test_data)
+```
+
+```{r}
+setwd("C:/Users/anany/OneDrive/Hopkins/PhD/Year 3/Statistical Programming/Final Project/biostats777-final-project-git-culture")
+# For loop to combine files - the files were named differently its ranking up until 2014 and rankings after that. Additionally they are stored as a .xls file up until 2019 and as a .xlsx files from 2020 onward.
+
+# Create list of all files and years
+files_and_years <- data.frame(
+  year = 2010:2025,
+  filename = c(
+    # 2010-2014
+    "2010 County Health Ranking California Data.xls",
+    "2011 County Health Ranking California Data.xls", 
+    "2012 County Health Ranking California Data.xls",
+    "2013 County Health Ranking California Data.xls",
+    "2014 County Health Ranking California Data.xls",
+    # 2015-2019
+    "2015 County Health Rankings California Data.xls",
+    "2016 County Health Rankings California Data.xls",
+    "2017 County Health Rankings California Data.xls", 
+    "2018 County Health Rankings California Data.xls",
+    "2019 County Health Rankings California Data.xls",
+    # 2020-2025
+    "2020 County Health Rankings California Data.xlsx",
+    "2021 County Health Rankings California Data.xlsx",
+    "2022 County Health Rankings California Data.xlsx",
+    "2023 County Health Rankings California Data.xlsx", 
+    "2024 County Health Rankings California Data.xlsx",
+    "2025 County Health Rankings California Data.xlsx"
+  )
+)
+
+# Process all files
+all_data <- list()
+for(i in 1:nrow(files_and_years)) {
+  file_path <- file.path("county health data", files_and_years$filename[i])
+  year <- files_and_years$year[i]
+  year_data <- extract_ypll(file_path, year)
+  
+  if(!is.null(year_data) && nrow(year_data) > 0) {
+    all_data[[as.character(year)]] <- year_data
+  }
+}
+
+# Combine all data
+final_combined <- bind_rows(all_data)
+
+# Save to CSV
+write.csv(final_combined, "county health data/combined_california_ypll.csv", row.names = FALSE)
+
+# Check results while extracting 
+cat("\n=== FINAL SUMMARY ===\n")
+cat("Total rows:", nrow(final_combined), "\n")
+cat("Years included:", paste(sort(unique(final_combined$Year)), collapse = ", "), "\n")
+cat("Counties:", length(unique(final_combined$County)), "\n")
+
+# Show first few rows
+head(final_combined)
+```
+
+```{}
+```
+
+### Older Attempts
+
+```{r}
+extract_ypll <- function(file_path, year) {
+  # Specify sheet name based on year
+  sheet_name <- case_when(
+    year == 2010 ~ "Measure Data",
+    year >= 2011 & year <= 2023 ~ "Ranked Measure Data",
+    year >= 2024 ~ "Select Measure Data",
+    TRUE ~ NA_character_
+  )
+  
+  # Confirm file exists
+  if(!file.exists(file_path)) {
+    warning(paste("File not found:", file_path))
+    return(NULL)
+  }
+  
+# There are two different ways the YPLL column is named "YPLL rate and "Years of Potential Life Lost Rate" across the datasheets. Some of the sheets alos have a merged header which is disrupting how the data is being read in
+  tryCatch({
+    # Read in the data, skipping the first row which might be the merged header
+    data <- read_excel(file_path, sheet = sheet_name, skip = 1)
+    
+    # If that doesn't work, try without skipping
+    if(!"Years of Potential Life Lost Rate" %in% names(data)) {
+      data <- read_excel(file_path, sheet = sheet_name)
+    }
+   
+    # Look for the YPLL column with more flexible matching
+    ypll_col <- NULL
+    possible_names <- c("Years of Potential Life Lost Rate", "YPLL Rate", "YPLL")
+    
+    for(name in possible_names) {
+      if(name %in% names(data)) {
+        ypll_col <- name
+        break
+      }
+    }
+    
+    # If still not found, look for partial matches
+    if(is.null(ypll_col)) {
+      ypll_matches <- names(data)[grepl("Years.*Lost.*Rate|YPLL", names(data), ignore.case = TRUE)]
+      if(length(ypll_matches) > 0) {
+        ypll_col <- ypll_matches[1]
+      }
+    }
+    
+    if(is.null(ypll_col)) {
+      cat("YPLL column not found. All columns:\n")
+      print(names(data))
+      return(NULL)
+    }
+    
+    # Extract the following columns and add year 
+    result <- data %>%
+      select(
+        FIPS = FIPS,
+        State = State,
+        County = County,
+        YPLL_Rate = all_of(ypll_col),
+        CI_Low = `95% CI - Low`,
+        CI_High = `95% CI - High`
+      ) %>%
+      mutate(Year = year) %>%
+      # Convert data types
+      mutate(
+        FIPS = as.character(FIPS),
+        YPLL_Rate = as.numeric(YPLL_Rate),
+        CI_Low = as.numeric(CI_Low),
+        CI_High = as.numeric(CI_High)
+      ) %>%
+      # Remove rows with missing YPLL data or missing county names
+      filter(!is.na(YPLL_Rate) & !is.na(County) & County != "")
+
+  })
+}
+
+```
+
+```{r}
+# Test with 2023
+data_2023 <- extract_ypll("county health data/2023 County Health Rankings California Data.xlsx", 2023)
+
+# Test with 2024
+data_2024 <- extract_ypll("county health data/2024 County Health Rankings California Data.xlsx", 2024)
+```
+
+```{r}
+# Function to extract YPLL data
+extract_ypll <- function(file_path, year){
+  # Specify sheet name based on year
+  sheet_name <- case_when(
+    year == 2010 ~ "Measure Data",
+    year >= 2011 & year <= 2023 ~ "Ranked Measure Data",
+    year >= 2024 ~ "Select Measure Data",
+    TRUE ~ NA_character_
+  )
+  
+  # Confirm file exists
+  if(!file.exists(file_path)){
+    warning(paste("File not found:", file_path))
+    return(NULL)
+  }
+  
+  tryCatch({
+    # Read in the data
+    data <- read_excel(file_path, sheet = sheet_name)
+    
+    # There are two different ways the YPLL column is named "YPLL rate and "Years of Potential Life Lost Rate" across the datasheets
+    ypll_col <- NULL
+    if("YPLL Rate" %in% names(data)) {
+      ypll_col <- "YPLL Rate"
+    } else if("Years of Potential Life Lost Rate" %in% names(data)) {
+      ypll_col <- "Years of Potential Life Lost Rate"
+    } else {
+      warning(paste("YPLL column not found in", year, "data"))
+      return(NULL)
+    }
+    
+    # Extract the required columns and add year
+    result <- data %>%
+      select(
+        FIPS = FIPS,
+        State = State,
+        County = County,
+        YPLL_Rate = !!sym(ypll_col),
+        CI_Low = `95% CI - Low`,
+        CI_High = `95% CI - High`
+      ) %>%
+      mutate(Year = year) %>%
+      # Convert data types
+      mutate(
+        FIPS = as.character(FIPS),
+        YPLL_Rate = as.numeric(YPLL_Rate),
+        CI_Low = as.numeric(CI_Low),
+        CI_High = as.numeric(CI_High)
+      ) %>%
+      # Remove rows with missing YPLL data
+      filter(!is.na(YPLL_Rate))
+  })
+  
+}
+```
+
+```{r}
+# Function to process and combine data
+setwd ("C:/Users/anany/OneDrive/Hopkins/PhD/Year 3/Statistical Programming/Final Project/biostats777-final-project-git-culture")
+combine_ypll <- function(data_folder = "county health data") {
+  file_directory <- file.path(data_folder)
+
+# Define years
+years<- 2010:2025
+
+# Create empty list to store data
+all_data <- list()
+
+# Process for each year
+for(year in years) {
+  # Expected file name structure
+  file_name <- paste(year, "County Health Rankings California Data.xlsx")
+    file_path <- file.path(file_directory, file_name)
+    
+    # Check if .xlsx file exists, if not try .xls
+    if (!file.exists(file_path)) {
+      file_name <- paste(year, "County Health Rankings California Data.xls")
+      file_path <- file.path(file_directory, file_name)
+    }
+    
+    # Skip if file doesn't exist
+    if (!file.exists(file_path)) {
+      cat("File not found for year", year, "\n")
+      next
+    }
+    
+    # Extract data by year
+     year_data <- extract_ypll(file_path, year)
+    
+    if (!is.null(year_data) && nrow(year_data) > 0) {
+      all_data[[as.character(year)]] <- year_data
+    }
+}
+     
+# Combine extracted data
+if (length(all_data) > 0) {
+    combined_data <- bind_rows(all_data)
+    
+    combined_data <- combined_data %>%
+      # Reorder columns
+      select(Year, FIPS, State, County, YPLL_Rate, CI_Low, CI_High) %>%
+      # Sort by year and county
+      arrange(Year, County)
+    
+    # save data
+    output_file <- file.path(file_directory, "combined_ca_ypll.csv")
+    
+    # Write to CSV
+    write.csv(combined_data, output_file, row.names = FALSE)
+  }
+    
+}
+
+```
+
+```{r}
+# Run Function
+combined_data <- combine_ypll("county health data")
+```

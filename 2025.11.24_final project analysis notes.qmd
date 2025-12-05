@@ -1,0 +1,181 @@
+---
+title: "2025.11.24_finalproj_notes"
+author: "Jacqueline Ferri"
+format: html
+editor: visual
+---
+
+# 11/24/25
+
+
+##set up local repo for final project repo (collaborative)
+
+verify github account = school, not personal
+
+  git config --global user.name 
+  
+    returned: Jacqueline Ferri
+    
+  git config --global user.email
+  
+    returned: jferri3@jhmi.edu
+    
+account all set
+
+## view all files and think about how to compile them
+
+
+what's the commmand for pulling just the columns? head n=1? YEP
+
+Look at the headers for all files - compile them into a csv as rows with the column header = file name
+
+## actually first i need to wrangle the statecountypop data 
+
+it's currently wide format with multiple header lines
+
+need to adjust for long format and add a column which annotates whether annual or cumulative data and the year applicable
+
+copied .xlsx file and saved as countystatepop_20-24.csv 
+
+    - separated geographical_information into two columns; county and state (used excel find and trim formulas)
+    
+    - copied and pasted county and state columns to remove formulas 
+    
+    - added "annual_v_cumulative" column to indicate which dataset the results are from
+    
+      - then copied the cumulative dataset down below the annual with the county and states repeated too 
+      
+    
+## now i can go back and assembled the csv of the headers to see how we can work with the data files all together
+
+    - make wide list of extracted column headers
+    
+      paste -d, <(echo *.csv | tr ' ' ',') \
+       <(for f in *.csv; do head -n1 "$f"; done | \
+         sed 's/,/\n/g' | \
+         paste -sd ',' -) > headers_wide.csv
+      
+      this didn't work :(, the data slipped around **chatGPT said this is because the command doesn't include padding for blank header spaces/blanks due to the files having different numbers of columns
+      
+    - attempt 2: pad blanks
+    
+      - save this in a .sh script and run in the directory:
+ 
+```{r but actually it's zsh}
+##put this command inside r bubble for easier reading/organizing in qmd file
+ #!/bin/bash
+
+# collect header rows
+for f in *.csv; do
+    head -n 1 "$f" | tr ',' '\n' > "$f.headers"
+done
+
+# find largest number of header rows
+max=$(wc -l *.headers | awk '{print $1}' | sort -nr | head -1)
+
+# pad all files to same number of lines
+for h in *.headers; do
+    lines=$(wc -l < "$h")
+    if [ "$lines" -lt "$max" ]; then
+        for ((i=lines;i<max;i++)); do echo "" >> "$h"; done
+    fi
+done
+
+# build the combined CSV
+{
+    # header row with filenames
+    printf "%s" "$(ls *.csv | paste -sd ',')"
+    echo
+
+    # paste vertically
+    paste -d, *.headers
+} > combined_headers.csv
+
+# clean temp files
+rm *.headers
+```
+
+      - **worked for the header names, but didn't include the file names as column headers
+      
+    - attempt 3: extract file names, pad blanks, and save file column names in rows
+
+saved under .sh file collect_headers2.sh and will create file combined_headers2.csv
+```{r}
+#!/bin/bash
+
+# 1️⃣ Split each CSV's header into a temporary file
+for f in *.csv; do
+    head -n1 "$f" | tr ',' '\n' > "$f.headers"
+done
+
+# 2️⃣ Find the maximum number of columns
+max=$(wc -l *.headers | awk '{print $1}' | sort -nr | head -1)
+
+# 3️⃣ Pad all header files to the max length
+for h in *.headers; do
+    lines=$(wc -l < "$h")
+    if [ "$lines" -lt "$max" ]; then
+        for ((i=lines;i<max;i++)); do
+            echo "" >> "$h"
+        done
+    fi
+done
+
+# 4️⃣ Output the combined CSV with filenames as first row
+{
+    # Print filenames as first row (comma-separated)
+    ls *.csv | paste -sd ','
+    # Paste headers below
+    paste -d, *.headers
+} > combined_headers.csv
+
+# 5️⃣ Clean up
+rm *.headers
+
+```
+
+    - attempt 4: giving up and doing it the manual way
+    
+        - head -n 1 file.csv | to get headers
+            
+            head -n 1 *.csv
+        
+        - open blank excel sheet and format wide with all .csv files for project
+        
+## issue 1: realized that the bigger files weren't downloaded with raw data just the pointer file. b/c that's just what github UI does .... get the full one with git-lfs
+
+1. install git-lfs | brew install git-lfs
+
+2. initialize LFS in your local repo | git lfs install
+
+3. clone the repo again specifically for lfs files | git lfs pull
+
+**missed a few steps:
+
+1. install git-lfs | brew install git-lfs
+
+2. initialize LFS in your local repo | git lfs install
+
+3. download all LFS objects from the remote | git lfs fetch --all
+
+    - if you're not a dumbdumb who hasn't set up her keys this will prompt you to give your password before fetching everything
+    
+4. replace pointers in working directory with real files | git lfs checkout
+
+    - if pointer file already in directory, checkout only replaces pointer files if index references correctly. if doesn't match exactly LFS will not overwrite it
+    
+    1. check for changes ... **NONE OF THIS WORKED, GOING MANUAL**
+    
+### downloaded raw data and replaced file in local repo copy with the downloaded raw data . . . TADA 
+
+
+
+
+
+## current status: all files are accessible locally, column headers have been manually extracted and compiled into .csv "column_headers.csv" and excel sheets have been saved under "column_headers_indexing.xlsx" with more information/organization
+
+# looking at column headers to think about how to wrangle together
+
+bfro have index to compare across all three files 
+
+brfo have state and county which can be used to compare to all others
