@@ -1,0 +1,7 @@
+---
+title: "Weather"
+--- 
+
+## we could start with a small selection of the data to show what the data loks like? 
+
+## graphs for visualizing the weather data itself?

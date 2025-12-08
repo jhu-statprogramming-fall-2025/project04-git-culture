@@ -1,0 +1,725 @@
+---
+author: "Ananya Bhaktaram"
+title: "NUFORC Data Scraping"
+date: today
+format: html
+editor: visual
+---
+
+Load working libraries
+
+```{r}
+library(rvest)
+library(dplyr)
+library(readr)
+library(httr)
+library(stringr)
+```
+
+### Analyze NUFORC Page Structure
+
+```{r}
+analyze_nuforc_page <- function(url) {
+  
+  # Fetch the page
+  page <- read_html(url)
+  
+  # Check for tables
+  tables <- html_nodes(page, "table")
+  cat("Number of tables found:", length(tables), "\n")
+  
+  if (length(tables) > 0) {
+    # Analyze first table
+    first_table <- tables[[1]]
+    
+    # Check table attributes
+    table_attrs <- html_attrs(first_table)
+    cat("Table attributes:", paste(names(table_attrs), table_attrs, sep="=", collapse=", "), "\n")
+    
+    # Count rows and columns
+    rows <- html_nodes(first_table, "tr")
+    cat("Number of rows in first table:", length(rows), "\n")
+    
+    if (length(rows) > 0) {
+      first_row_cells <- html_nodes(rows[[1]], "td, th")
+      cat("Number of columns:", length(first_row_cells), "\n")
+      
+      # Show first few cell contents
+      cat("\nFirst row contents:\n")
+      for (i in seq_along(first_row_cells)[1:min(5, length(first_row_cells))]) {
+        cell_text <- html_text(first_row_cells[[i]], trim = TRUE)
+        cat("  Column", i, ":", substr(cell_text, 1, 50), "\n")
+      }
+    }
+  }
+  
+  # Check for JavaScript/AJAX indicators
+  scripts <- html_nodes(page, "script")
+  cat("\nNumber of script tags:", length(scripts), "\n")
+  
+  # Look for common AJAX/dynamic loading indicators
+  ajax_indicators <- c("ajax", "xhr", "fetch", "load", "dynamic")
+  script_content <- paste(html_text(scripts), collapse = " ")
+  found_indicators <- ajax_indicators[sapply(ajax_indicators, function(x) grepl(x, script_content, ignore.case = TRUE))]
+  
+  if (length(found_indicators) > 0) {
+    cat("Possible AJAX/dynamic loading indicators found:", paste(found_indicators, collapse = ", "), "\n")
+  }
+  
+  # Check for pagination
+  pagination_selectors <- c("a[href*='page']", ".pagination", ".pager", "a[href*='next']", "a[href*='prev']")
+  pagination_found <- FALSE
+  
+  for (selector in pagination_selectors) {
+    elements <- html_nodes(page, selector)
+    if (length(elements) > 0) {
+      cat("Pagination elements found with selector '", selector, "':", length(elements), "\n")
+      pagination_found <- TRUE
+    }
+  }
+  
+  if (!pagination_found) {
+    cat("No obvious pagination elements found\n")
+  }
+  
+  # Check page size and load time
+  page_content <- as.character(page)
+  cat("\nPage size: ~", round(nchar(page_content)/1024), "KB\n")
+  
+  return(invisible(page))
+}
+
+# Run analysis
+url <- "https://nuforc.org/subndx/?id=all"
+analyze_nuforc_page(url)
+```
+
+### Test Scrape
+
+```{r}
+library(rvest)
+library(dplyr)
+
+# Test Scrape
+test_scrape <- function() {
+  url <- "https://nuforc.org/subndx/?id=all"
+  
+  # Try with a longer delay 
+  Sys.sleep(5)  
+  page <- read_html(url)
+  
+  # Look for tables
+  tables <- html_table(page, fill = TRUE)
+  cat("Found", length(tables), "tables\n")
+  
+  if (length(tables) > 0) {
+    for (i in 1:length(tables)) {
+      df <- tables[[i]]
+      cat("Table", i, ":", nrow(df), "rows x", ncol(df), "columns\n")
+      
+      if (nrow(df) > 1) {
+        cat("First few rows of table", i, ":\n")
+        print(head(df, 3))
+        cat("\n")
+      }
+    }
+    
+    return(tables)
+  } else {
+    return(NULL)
+  }
+}
+
+test_data <-test_scrape()
+```
+
+Using rvest worked to extract the first 100 entries. Explore table structure and layout of the sample table
+
+The columns we want to extract are:
+
+Occurred, City, State, Country, Shape, and Reported.
+
+We want to restrict data only to observed sightings in the United States
+
+### Clean Test Data
+
+```{r}
+# Clean Extracted Data
+process_ufo <- function(test_data) {
+
+  # Load table
+  df <- test_data[[1]]
+  
+   # Clean data
+  clean_df <- df %>%
+    # Format text columns
+    mutate(across(everything(), ~ {
+      text <- as.character(.)
+      text <- str_trim(str_squish(text))  # Remove extra whitespace
+      text[text == "" | text == " " | text == "NULL"] <- NA
+      return(text)
+    })) %>%
+    # Remove any completely emptry rows
+    filter(if_any(everything(), ~ !is.na(.) & . != ""))
+  
+  # US state abbreviations for validation
+  us_states <- c("AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
+                "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
+                "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
+                "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
+                "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC")
+  
+  # Filter for US entries 
+  us_data <- clean_df %>%
+    filter(
+      # State is a US state OR Country contains USA/US
+      State %in% us_states | 
+      str_detect(toupper(Country), "USA|US|UNITED STATES")
+    ) %>%
+    # Select only the columns you requested
+    select(Occurred, City, State, Country, Shape, Reported) %>%
+    # Remove any rows where all selected columns are empty
+    filter(if_any(everything(), ~ !is.na(.) & . != "")) %>%
+    # Remove duplicates
+    distinct()
+  
+  return(us_data)
+}
+
+# Process the data
+clean_test <- process_ufo(test_data)
+```
+
+### Save Test Data
+
+```{r}
+# Save
+save<- function(clean_test, output_file = "scraped_nuforc.csv") {
+  
+  
+  # Save to CSV
+  write_csv(clean_test, output_file)
+  
+  # Show sample
+  print(head(clean_test, 5))
+  
+  return(clean_test)
+}
+
+# Save the data
+clean_test_data <- save(clean_test)
+```
+
+### Use RSelenium Package to Extract all Pages
+
+```{r}
+library(rvest)
+library(dplyr)
+library(stringr)
+library(readr)
+library(httr)
+
+# Enhanced rvest approach with session management
+full_extraction <- function() {
+  url <- "https://nuforc.org/subndx/?id=all"
+  
+  # Create a persistent session with realistic headers
+  sess <- session(url) %>%
+    session_jump_to(
+      url,
+      user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+      add_headers(
+        "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language" = "en-US,en;q=0.5",
+        "Accept-Encoding" = "gzip, deflate, br",
+        "Connection" = "keep-alive",
+        "Upgrade-Insecure-Requests" = "1"
+      )
+    )
+  
+  # Try multiple approaches with increasing wait times
+  best_result <- NULL
+  max_rows <- 0
+  
+  for (attempt in 1:5) {
+    cat("Attempt", attempt, "- waiting", attempt * 5, "seconds for JavaScript...\n")
+    
+    # Wait for JavaScript to load
+    Sys.sleep(attempt * 5)
+    
+    # Re-read the page 
+    page <- read_html(sess)
+    
+    # Extract tables
+    tables <- html_table(page, fill = TRUE)
+    
+    if (length(tables) > 0) {
+      df <- tables[[1]]
+      
+      if (nrow(df) > max_rows) {
+        max_rows <- nrow(df)
+        best_result <- df
+      }
+      
+      # Check if there is greater than a 1000 entries
+      if (nrow(df) > 1000) {
+        break
+      }
+    }
+    
+    # Refresh the session to grab more data
+    if (attempt < 5) {
+      sess <- session_jump_to(sess, url)
+    }
+  }
+  
+  if (!is.null(best_result)) {
+    cat("✅ Best result:", nrow(best_result), "rows\n")
+    return(best_result)
+  } else {
+    cat("❌ No data found\n")
+    return(NULL)
+  }
+}
+
+# Run the enhanced rvest approach
+nuforc_data2 <- full_extraction()
+```
+
+### Attempt 1 to fix encoding error
+
+```{r}
+library(httr)
+library(rvest)
+
+url <- "https://nuforc.org/subndx/?id=all"
+
+# Modify basic headers
+response <- GET(url, 
+                user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+                add_headers("Accept-Encoding" = "gzip, deflate"))
+
+page <- read_html(content(response, "text"))
+tables <- html_table(page, fill = TRUE)
+
+```
+
+### Testing URL Parameters to scrape more than the first 100 entries
+
+```{r}
+library(httr)
+library(rvest)
+library(dplyr)
+library(stringr)
+library(readr)
+
+# Build on the working quick fix to get more data
+more_data <- function() {
+  
+    base_url <- "https://nuforc.org/subndx/?id=all"
+  
+  # Test different URL parameters that might give us more data
+  url_variations <- c(
+    base_url,
+    paste0(base_url, "&length=1000"),
+    paste0(base_url, "&length=-1"),
+    paste0(base_url, "&show=all"),
+    paste0(base_url, "&limit=10000"),
+    paste0(base_url, "&per_page=1000"),
+    paste0(base_url, "&pageSize=1000"),
+    paste0(base_url, "&table_1_length=1000"),
+    paste0(base_url, "&table_1_length=-1"),
+    paste0(base_url, "&draw=1&start=0&length=10000"),
+    paste0(base_url, "&draw=1&start=0&length=-1")
+  )
+  
+  best_result <- NULL
+  max_rows <- 101  # We know we can get at least 101
+  
+  for (i in seq_along(url_variations)) {
+    url <- url_variations[[i]]
+    cat("Trying variation", i, ":", substr(url, 50, nchar(url)), "\n")
+    
+    tryCatch({
+      # Use the same approach that worked
+      response <- GET(url, 
+                      user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+                      add_headers("Accept-Encoding" = "gzip, deflate"),
+                      timeout(60))
+      
+      if (status_code(response) == 200) {
+        page <- read_html(content(response, "text"))
+        tables <- html_table(page, fill = TRUE)
+        
+        if (length(tables) > 0) {
+          df <- tables[[1]]
+          cat("  Result:", nrow(df), "rows\n")
+          
+          if (nrow(df) > max_rows) {
+            max_rows <- nrow(df)
+            best_result <- df
+            cat("  ✅ NEW BEST RESULT:", nrow(df), "rows!\n")
+          }
+        } else {
+          cat("  No tables found\n")
+        }
+      } else {
+        cat("  HTTP Status:", status_code(response), "\n")
+      }
+      
+      # Pause between request processes to allow for system reload
+      Sys.sleep(2)
+      
+    }, error = function(e) {
+      cat("  Error:", conditionMessage(e), "\n")
+    })
+  }
+  
+  if (!is.null(best_result)) {
+    cat("\n✅ Best result:", nrow(best_result), "rows\n")
+    return(best_result)
+  } else {
+    cat("\n❌ No improvement over 101 rows\n")
+    return(NULL)
+  }
+}
+
+# Try URL variations
+nuforc_data3 <- more_data()
+```
+
+### Testing Pagination
+
+```{r}
+library(httr)
+library(rvest)
+library(dplyr)
+library(stringr)
+
+# Attempted Pagination Function
+scrape_multiple_pages <- function(max_pages = 20) {
+  
+  base_url <- "https://nuforc.org/subndx/?id=all"
+  all_data <- data.frame()
+  
+  # Try different pagination patterns
+  pagination_patterns <- list(
+    # Standard pagination
+    function(page) paste0(base_url, "&page=", page),
+    
+    # Offset-based
+    function(page) paste0(base_url, "&start=", (page-1) * 100),
+    function(page) paste0(base_url, "&offset=", (page-1) * 100),
+    
+    # DataTables style
+    function(page) paste0(base_url, "&draw=", page, "&start=", (page-1) * 100, "&length=100"),
+    
+    # WordPress style
+    function(page) paste0(base_url, "&paged=", page),
+    
+    # Other common patterns
+    function(page) paste0(base_url, "&p=", page),
+    function(page) paste0(base_url, "&pagenum=", page)
+  )
+  
+  for (pattern_num in seq_along(pagination_patterns)) {
+    cat("Trying pagination pattern", pattern_num, "...\n")
+    
+    pattern_data <- data.frame()
+    consecutive_failures <- 0
+    
+    for (page in 1:max_pages) {
+      url <- pagination_patterns[[pattern_num]](page)
+      cat("  Page", page, "...")
+      
+      tryCatch({
+        # Use our working method with the encoding fix
+        response <- GET(url, 
+                        user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"), # Assuming Google Chrome Usage 
+                        add_headers("Accept-Encoding" = "gzip, deflate"),
+                        timeout(30))
+        
+        if (status_code(response) == 200) {
+          page_html <- read_html(content(response, "text"))
+          tables <- html_table(page_html, fill = TRUE)
+          
+          if (length(tables) > 0 && nrow(tables[[1]]) > 1) {
+            page_data <- tables[[1]]
+            
+            # Check if this is new data (different from previous pages)
+            if (nrow(pattern_data) == 0) {
+              # First page for this pattern
+              pattern_data <- page_data
+              consecutive_failures <- 0
+              cat(" ✅", nrow(page_data), "rows (Total:", nrow(pattern_data), ")\n")
+            } else {
+              # Check if data is different from what we already have
+              # Compare first few rows to detect duplicates
+              first_few_new <- page_data[1:min(3, nrow(page_data)), 1:min(3, ncol(page_data))]
+              first_few_existing <- pattern_data[1:min(3, nrow(pattern_data)), 1:min(3, ncol(pattern_data))]
+              
+              if (!identical(first_few_new, first_few_existing)) {
+                # New data found
+                pattern_data <- bind_rows(pattern_data, page_data)
+                consecutive_failures <- 0
+                cat(" ✅", nrow(page_data), "new rows (Total:", nrow(pattern_data), ")\n")
+              } else {
+                consecutive_failures <- consecutive_failures + 1
+                cat(" ⚠️ Duplicate data\n")
+                
+                if (consecutive_failures >= 3) {
+                  cat("  Stopping pattern", pattern_num, "- too many duplicates\n")
+                  break
+                }
+              }
+            }
+          } else {
+            consecutive_failures <- consecutive_failures + 1
+            cat(" ❌ No data\n")
+            
+            if (consecutive_failures >= 3) {
+              cat("  Stopping pattern", pattern_num, "- no more data\n")
+              break
+            }
+          }
+        } else {
+          cat(" HTTP", status_code(response), "\n")
+          consecutive_failures <- consecutive_failures + 1
+        }
+        
+        # Be respectful - wait between requests
+        Sys.sleep(2)
+        
+      }, error = function(e) {
+        cat(" Error:", conditionMessage(e), "\n")
+        consecutive_failures <- consecutive_failures + 1
+      })
+      
+      if (consecutive_failures >= 5) {
+        cat("  Too many failures, stopping pattern", pattern_num, "\n")
+        break
+      }
+    }
+    
+    if (nrow(pattern_data) > nrow(all_data)) {
+      all_data <- pattern_data
+      cat("✅ Pattern", pattern_num, "is best so far:", nrow(all_data), "total rows\n")
+    } else {
+      cat("Pattern", pattern_num, "result:", nrow(pattern_data), "rows\n")
+    }
+    
+    cat("\n")
+  }
+  
+  if (nrow(all_data) > 101) {
+    cat("🎉 SUCCESS! Found", nrow(all_data), "total records across multiple pages!\n")
+    return(all_data)
+  } else {
+    cat("❌ No pagination pattern found more than 101 records\n")
+    return(NULL)
+  }
+}
+
+# Now run the pagination function
+multi_page_data <- scrape_multiple_pages(max_pages = 15)
+```
+
+## Latest (11/29/2025) Scrape Attempt - more manual less automated
+
+### HTML Examination
+
+```{r}
+library(httr)    
+library(rvest)   
+library(dplyr)   
+library(stringr) 
+library(readr) 
+
+# Load NUFORC website into R
+url <- "https://nuforc.org/subndx/?id=all"
+
+# Get the page (using the working method from above)
+response <- GET(url, 
+                user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"), # Chrome user agent specification 
+                add_headers("Accept-Encoding" = "gzip, deflate"))
+
+page <- read_html(content(response, "text"))
+
+# View the HTML Structure for the first 3000 characters
+cat("=== NUFORC HTML STRUCTURE ===\n")
+page %>%
+  as.character() %>%
+  substr(1, 3000) %>%
+  cat()
+```
+
+The website appears to be in HTML, but the page is loading using JavaScript.
+
+### Exploration for specific table structure
+
+```{r}
+# Find all tables
+cat("Number of tables:", page %>% html_elements("table") %>% length(), "\n")
+
+# Look for table classes and IDs
+tables <- page %>% html_elements("table")
+if (length(tables) > 0) {
+  table_attrs <- html_attrs(tables[[1]])
+  cat("First table attributes:\n")
+  print(table_attrs)
+}
+
+# Find table headers
+cat("\nTable headers:\n")
+headers <- page %>% html_elements("table th, table tr:first-child td") %>% html_text()
+print(headers)
+
+# Find table rows
+cat("\nNumber of table rows:", page %>% html_elements("table tr") %>% length(), "\n")
+
+# Look at first few data rows
+rows <- page %>% html_elements("table tr")
+for (i in 1:min(5, length(rows))) {
+  cells <- rows[[i]] %>% html_elements("td, th") %>% html_text(trim = TRUE)
+  if (length(cells) > 0) {
+    cat("Row", i, ":", paste(cells[1:min(5, length(cells))], collapse = " | "), "\n")
+  }
+}
+
+# Look for DataTables specific elements
+cat("Elements with 'dataTables' class:", page %>% html_elements("[class*='dataTables']") %>% length(), "\n")
+cat("Elements with 'wpDataTable' class:", page %>% html_elements("[class*='wpDataTable']") %>% length(), "\n")
+cat("Table with ID 'table_1':", page %>% html_elements("#table_1") %>% length(), "\n")
+
+# Look for select dropdowns
+selects <- page %>% html_elements("select")
+cat("Number of select elements:", length(selects), "\n")
+
+if (length(selects) > 0) {
+  for (i in seq_along(selects)) {
+    select_name <- selects[[i]] %>% html_attr("name")
+    select_id <- selects[[i]] %>% html_attr("id") 
+    options <- selects[[i]] %>% html_elements("option") %>% html_text()
+    
+    cat("Select", i, "- Name:", select_name %||% "none", 
+        "ID:", select_id %||% "none", "\n")
+    cat("  Options:", paste(options, collapse = ", "), "\n")
+  }
+}
+```
+
+There is 1 table, the table is being stored in HTML as a WordPress DataTable Plugin. There aren't an select elements, and the data is stored in the HTML rather than on a different server somewhere and simply being called to display.
+
+The reason I have only been able to extract a 100 entries is because the table is hidden by CSS given that the display function is listed as none, and is being moderated by the JavaScript loading, and I have only been able to extract the first 100 records because that's what is defaultly loaded.
+
+### Exploring Javascript Pagination
+
+```{r}
+library(rvest)
+library(dplyr)
+library(stringr)
+library(readr)
+library(chromote)
+
+
+# Start browser
+b <- chromote::default_chromote_object()$new_session()
+b$Page$navigate("https://nuforc.org/subndx/?id=all")
+Sys.sleep(30)
+
+#Confrim page has loaded
+page_check_js <- '
+{
+  title: document.title,
+  url: window.location.href,
+  bodyText: document.body ? document.body.innerText.substring(0, 500) : "no body",
+  hasTable: document.querySelectorAll("table").length,
+  hasDiv: document.querySelectorAll("div").length,
+  scripts: document.querySelectorAll("script").length,
+  readyState: document.readyState
+}
+'
+
+page_info <- b$Runtime$evaluate(page_check_js)
+page_data <- page_info$result$value
+
+# Function for page discovery 
+if (page_data$hasTable > 0){
+  pagination_discovery_js <- '
+  const results = {
+    tables: [],
+    pagination_containers: [],
+    buttons: [],
+    links: [],
+    selects: []
+  };
+
+  const tables = document.querySelectorAll("table");
+  tables.forEach((table, i) => {
+    results.tables.push({
+      index: i,
+      id: table.id || "no-id",
+      class: table.className || "no-class", 
+      rows: table.querySelectorAll("tr").length,
+      visible: table.offsetParent !== null
+    });
+  });
+
+  const paginationSelectors = [
+    ".dataTables_paginate", ".pagination", ".page-numbers",
+    "[class*=paginate]", "[class*=paging]", ".wp-pagenavi"
+  ];
+
+  paginationSelectors.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length > 0) {
+      results.pagination_containers.push({
+        selector: selector,
+        count: elements.length,
+        visible: elements[0].offsetParent !== null
+      });
+    }
+  });
+
+  const buttons = document.querySelectorAll("button, input[type=button]");
+  buttons.forEach((btn, i) => {
+    const text = btn.textContent.trim().toLowerCase();
+    if (text.includes("next") || text.includes("prev") || text.match(/^\\\\d+$/)) {
+      results.buttons.push({
+        text: btn.textContent.trim(),
+        visible: btn.offsetParent !== null
+      });
+    }
+  });
+
+  const links = document.querySelectorAll("a");
+  links.forEach((link, i) => {
+    const text = link.textContent.trim().toLowerCase();
+    if (text.includes("next") || text.includes("prev") || text.match(/^\\\\d+$/)) {
+      results.links.push({
+        text: link.textContent.trim(),
+        visible: link.offsetParent !== null
+      });
+    }
+  });
+
+  const selects = document.querySelectorAll("select");
+  results.selects = Array.from(selects).map(select => ({
+    name: select.name || "no-name",
+    visible: select.offsetParent !== null,
+    optionCount: select.options.length
+  }));
+
+  results;
+  '
+  
+  discovery_result <- b$Runtime$evaluate(pagination_discovery_js)
+  discovery_data <- discovery_result$result$value
+  
+}
+
+# Close browser
+b$close()
+```
+
+### 

@@ -1,0 +1,23 @@
+==> bfro_locations.csv <==
+index,number,title,classification,timestamp,latitude,longitude
+
+==> bfro_reports_geocoded.csv <==
+index,observed,location_details,county,state,season,title,latitude,longitude,date,number,classification,geohash,temperature_high,temperature_mid,temperature_low,dew_point,humidity,cloud_cover,moon_phase,precip_intensity,precip_probability,precip_type,pressure,summary,uv_index,visibility,wind_bearing,wind_speed
+
+==> bfro_reports.csv <==
+index,YEAR,SEASON,STATE,COUNTY,NEAREST_TOWN,NEAREST_ROAD,OBSERVED,ALSO_NOTICED,OTHER_WITNESSES,OTHER_STORIES,TIME_AND_CONDITIONS,ENVIRONMENT,REPORT_NUMBER,REPORT_CLASS,LOCATION_DETAILS,MONTH,DATE,A_&_G_References
+
+==> countystatepop_20-24.csv <==
+﻿county,state,annimal_v_cumulative,total_pop_change,natural_change,births,deaths,total,international,domestic
+
+==> nuforc_ufo_us_state_counts.csv <==
+Location.State,sightings
+
+==> nuforc_ufo_us_state_year_counts.csv <==
+Location.State,year,sightings
+
+==> nuforc_ufo_us_wrangled.csv <==
+Location.City,Location.State,Location.Country,Data.Shape,Data.Encounter duration,Data.Description excerpt,Location.Coordinates.Latitude,Location.Coordinates.Longitude,Dates.Sighted.Year,Dates.Sighted.Month,Date.Sighted.Day,Dates.Sighted.Hour,Dates.Sighted.Minute,Dates.Documented.Year,Dates.Documented.Month,Dates.Documented.Day,lat,lon,sighted_date,year
+
+==> weather_data.csv <==
+Location,Date_Time,Temperature_C,Humidity_pct,Precipitation_mm,Wind_Speed_kmh

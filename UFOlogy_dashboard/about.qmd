@@ -1,0 +1,13 @@
+---
+title: "About"
+---
+
+## Purpose
+Dashboard to investigate UFO (UAP?) sightings, big foot sightings, and weather data - is there a connection? Let's find out! 
+
+## Authors
+Sonia Dhawan, Ananya Bhaktaram, Jacqueline Ferri, Curtis Ehlert 
+
+## Info
+Final project for Statistical Programming and Paradigms  Workshop Class
+Term 2 2025-2026 
