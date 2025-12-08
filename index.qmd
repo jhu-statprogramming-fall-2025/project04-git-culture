@@ -366,9 +366,8 @@ UFOencounter_duration_shape
 ```
 
 # Health data
-
-## YPLL
-```{r, echo=FALSE}
+2025.12.07: plots are in - need to make static overlays for clicky clicking for dashboard JTF
+```{r ypll, echo=FALSE}
 caliYPLL <- read.csv("county_health_data/combined_california_ypll.csv")
 nuforc <- read.csv("nuforc_county_weather_bigfoot.csv")
 
@@ -389,74 +388,12 @@ counties_sf <- counties(cb = TRUE, year = 2023)  # cb = cartographic boundaries
 caliYPLL$FIPS <- sprintf("%05d", as.numeric(caliYPLL$FIPS))
 
 # 3. Join your data to the map data using FIPS
-map_df <- counties_sf %>%
+county_map_df <- counties_sf %>%
   mutate(FIPS = GEOID) %>%
   left_join(caliYPLL, by = "FIPS")
 
 # 4. Plot choropleth
-YPLL_plot <- ggplot(map_df %>% filter(STATEFP == "06")) +
-  geom_sf(aes(fill = YPLL_Rate), color = NA) +     # NA removes borders for cleaner heat map
-  scale_fill_viridis(option = "magma", direction = -1, na.value = "grey90") +
-  labs(
-    title = "Years of Potential Life Lost Rate by County",
-    fill = "YPLL Rate"
-  ) +
-  theme_minimal()
-
-## format ufo_data for same visualization
-## clean data so names match
-ufo_data <- ufo_data %>%
-  mutate(
-    County = str_to_title(County),     # "ALAMEDA" → "Alameda"
-    County = paste0(County, " County"),
-    State = str_to_title(Location.State)        # if you have a State column
-  )
-
-## prepare shapefile names
-counties_sf <- counties(cb = TRUE, year = 2023) %>%
-  mutate(
-    County = paste0(NAME, " County"),
-    State = str_to_title(STATE_NAME)
-  )
-
-ufo_map_df <- counties_sf %>%
-  left_join(ufo_data, by = c("State", "County"))
-
-# Reproject shapefile (fixes warning #1)
-counties_sf_proj <- st_transform(counties_sf, 5070)
-
-# plot
-ggplot(
-  counties_sf_proj %>%
-    filter(STUSPS == "CA") %>%   # only California
-    left_join(
-      ufo_data %>%
-        filter(State == "CA") %>%
-        count(State, County, name = "sightings"),   # count inline
-      by = c("STUSPS" = "State", "NAME" = "County")
-    )
-) +
-  geom_sf(aes(fill = sightings), color = "white", size = 0.2) +
-  scale_fill_viridis_c(
-    option = "magma",
-    na.value = "grey90",
-    name = "Sightings"
-  ) +
-  labs(
-    title = "UFO Sightings per County in California",
-    subtitle = "Number of sightings per county"
-  ) +
-  theme_minimal()
-
-sightings_heatmap <- ggplot(ufo_map_df %>% filter(STATEFP == "06"))+
-  geom_sf(aes(fill="County"), color = NA)+
-  scale_fill_viridis(option="magma", direction = -1, na.value = "grey90")+
-  labs(
-    title = "Sightings by county",
-    fill = "County")+
-  theme_minimal()
-  )
-YPLL_plot <- ggplot(map_df %>% filter(STATEFP == "06")) +
+YPLL_plot <- ggplot(county_map_df %>% filter(STATEFP == "06")) +
   geom_sf(aes(fill = YPLL_Rate), color = NA) +     # NA removes borders for cleaner heat map
   scale_fill_viridis(option = "magma", direction = -1, na.value = "grey90") +
   labs(
@@ -466,100 +403,175 @@ YPLL_plot <- ggplot(map_df %>% filter(STATEFP == "06")) +
   theme_minimal()
 ```
 
-```{r}
-# function to create nuforc variable heatmaps
-library(dplyr)
-library(purrr)
-options(tigris_use_cache = FALSE)  # optional, avoids caching errors
-
-# Columns/variables you want
-variables_to_count <- c(
-  "City",
-  "County",
-  "Data.Shape",
-  "Seasons",
-  "Dates.Sighted.Year",
-  "Date.Sighted.Day",
-  "Dates.Sighted.Month"
-)
-
-# counties_sf already loaded with CA counties
-counties_clean <- counties_sf
-
+```{r sightings heatmap, echo=FALSE}
 library(dplyr)
 library(ggplot2)
-library(purrr)
-library(stringr)
 library(sf)
-library(viridis)
+library(tigris)
 
-# Assume counties_sf already loaded with CA counties
-counties_clean <- counties_sf_proj
+# 1. Clean and aggregate
+ufo_by_county_clean <- ufo_data %>%
+  filter(Location.State == "CA") %>%
+  mutate(
+    County = str_replace(County, " County$", ""),  # remove suffix
+    County = str_trim(County),
+    County = str_to_lower(County)                 # optional: match shapefile
+  ) %>%
+  group_by(County) %>%
+  summarise(sightings = n(), .groups = "drop")    # aggregate count
 
-plot_auto_heatmaps <- function(counts_list, show_labels = FALSE) {
-  
-  plots <- map(names(counts_list), function(var_name) {
-    
-    df <- counts_list[[var_name]] %>%
-      rename(value = 1, count = 2) %>%
-      mutate(value = as.character(value))
-    
-    # Detect if this is a county column
-    is_county <- any(str_detect(df$value, "County$")) || any(tolower(df$value) %in% tolower(counties_clean$NAME))
-    
-    if(is_county) {
-      # Clean county names by removing " County"
-      df <- df %>% mutate(value = str_remove(value, " County$"))
-      
-      # Join with CA counties shapefile
-      map_df <- counties_clean %>%
-        left_join(df, by = c("NAME" = "value")) %>%
-        mutate(count = ifelse(is.na(count), 0, count))
-      
-      p <- ggplot(map_df) +
-        geom_sf(aes(fill = count), color = "white", size = 0.2)
-      
-      if(show_labels) {
-        p <- p + geom_sf_text(aes(label = count), size = 3, color = "black")
-      }
-      
-      p <- p +
-        scale_fill_viridis_c(option = "magma", na.value = "grey90") +
-        labs(
-          title = paste("UFO Heatmap for", var_name, "- California"),
-          fill = "Count"
-        ) +
-        theme_minimal()
-      
-      return(p)
-      
-    } else {
-      # For non-county variables, make a bar plot
-      df <- df %>% arrange(desc(count))
-      p <- ggplot(df, aes(x = reorder(value, -count), y = count, fill = count)) +
-        geom_col() +
-        scale_fill_viridis_c(option = "magma") +
-        labs(
-          title = paste("UFO Sightings by", var_name),
-          x = var_name,
-          y = "Count",
-          fill = "Count"
-        ) +
-        theme_minimal() +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
-      
-      return(p)
-    }
-  })
-  
-  names(plots) <- names(counts_list)
-  return(plots)
-}
+# 2. Clean shapefile
+library(tigris)
+counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
+  mutate(County = str_to_lower(NAME))             # lowercase to match
 
-# Example usage
-heatmaps <- plot_auto_heatmaps(ufo_data_counts, show_labels = TRUE)
+# 3. Join aggregated counts to map
+map_df_sightings <- counties_sf %>%
+  left_join(ufo_by_county_clean, by = "County")
 
+# 4. Plot
+library(ggplot2)
 
+plot_sightings <- ggplot(map_df_sightings) +
+  geom_sf(aes(fill = sightings), color = NA) +
+  geom_sf_text(aes(label = sightings), size = 3, color = "black") +
+  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
+  labs(
+    title = "UFO Sightings by County in California",
+    fill = "Sightings"
+  ) +
+  theme_minimal()
+```
 
+```{r average precip heat map, echo=FALSE}
+# 1. Load California counties shapefile
+counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
+  mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
 
+# 2. Clean UFO data and keep only CA
+ufo_by_precip_clean <- ufo_data %>%
+  filter(Location.State == "CA") %>%
+  mutate(
+    County = str_replace(County, " COUNTY$", ""),  # remove suffix
+    County = str_trim(County),
+    County = str_to_lower(County)                 # lowercase to match shapefile
+  )
+
+# 3. Aggregate average precipitation by county
+precip_by_county <- ufo_by_precip_clean %>%
+  group_by(County) %>%
+  summarise(
+    Avg_Precip = mean(Avg_Precip_Month_County, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# 4. Join aggregated data to map
+map_df_precip <- counties_sf %>%
+  left_join(precip_by_county, by = "County")
+
+# 5. Plot choropleth with values
+precip_plot <- ggplot(map_df_precip) +
+  geom_sf(aes(fill = Avg_Precip), color = NA) +
+  #geom_sf_text(aes(label = round(Avg_Precip, 1)), size = 3, color = "black") +
+  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
+  labs(
+    title = "Average Monthly Precipitation by County (CA)",
+    fill = "Avg Precip"
+  ) +
+  theme_minimal()
+```
+
+```{r year 2014, echo=FALSE}
+# 1. Load California counties shapefile
+counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
+  mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
+
+# 2. Filter UFO data for 2014 and clean county names
+ufo_2014 <- ufo_data %>%
+  filter(Location.State == "CA", Dates.Sighted.Year == 2014) %>%
+  mutate(
+    County = str_replace(County, " COUNTY$", ""),  # remove suffix
+    County = str_trim(County),
+    County = str_to_lower(County)                 # lowercase to match shapefile
+  )
+
+# 3. Aggregate sightings by county
+sightings_2014_by_county <- ufo_2014 %>%
+  group_by(County) %>%
+  summarise(sightings = n(), .groups = "drop")
+
+# 4. Join with shapefile
+map_df_2014 <- counties_sf %>%
+  left_join(sightings_2014_by_county, by = "County")
+
+# 5. Plot choropleth with counts
+sightings_2014_plot <- ggplot(map_df_2014) +
+  geom_sf(aes(fill = sightings), color = NA) +
+  geom_sf_text(aes(label = sightings), size = 3, color = "black", check_overlap = TRUE) +
+  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
+  labs(
+    title = "UFO Sightings by County in California (2014)",
+    fill = "Sightings"
+  ) +
+  theme_minimal()
+```
+
+```{r year 2013, echo=FALSE}
+# 1. Load California counties shapefile
+counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
+  mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
+
+# 2. Filter UFO data for 2013 and clean county names
+ufo_2013 <- ufo_data %>%
+  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
+  mutate(
+    County = str_replace(County, " COUNTY$", ""),  # remove suffix
+    County = str_trim(County),
+    County = str_to_lower(County)                 # lowercase to match shapefile
+  )
+
+# 3. Aggregate sightings by county
+sightings_2013_by_county <- ufo_2013 %>%
+  group_by(County) %>%
+  summarise(sightings = n(), .groups = "drop")
+
+# 4. Join with shapefile
+map_df_2013 <- counties_sf %>%
+  left_join(sightings_2013_by_county, by = "County")
+
+# 5. Plot choropleth with counts
+sightings_2013_plot <- ggplot(map_df_2013) +
+  geom_sf(aes(fill = sightings), color = NA) +
+  geom_sf_text(aes(label = sightings), size = 3, color = "black", check_overlap = TRUE) +
+  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
+  labs(
+    title = "UFO Sightings by County in California (2013)",
+    fill = "Sightings"
+  ) +
+  theme_minimal()
+```
+
+::: {.columns}
+::: {.card}
+```{r, echo=FALSE}
+YPLL_plot
+```
+:::
+
+::: {.card-tabset}
+### 2013
+```{r, echo=FALSE}
+sightings_2013_plot
+```
+### 2014
+```{r, echo=FALSE}
+sightings_2014_plot
+```
+:::
+:::
+
+::: {.card}
+```{r}
+precip_plot
+```
 
