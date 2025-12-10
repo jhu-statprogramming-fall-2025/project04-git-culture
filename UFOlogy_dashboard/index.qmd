@@ -186,30 +186,36 @@ Insert Curtis' leaflet plots here
 
 
 
-::::: columns
-::: card
+
+## {.tabset}
+### YPLL
 ```{r, echo=FALSE}
-#YPLL_plot
+grid::grid.raster(png::readPNG("plot-images/YPLL_plot.png"))
 ```
-:::
 
-::: card-tabset
 ### 2013
-
 ```{r, echo=FALSE}
-#sightings_2013_plot
+grid::grid.raster(png::readPNG("plot-images/sightings_2013_plot.png"))
+
 ```
 
 ### 2014
-
 ```{r, echo=FALSE}
 #sightings_2014_plot
-```
-:::
-:::::
+grid::grid.raster(png::readPNG("plot-images/sightings_2014_plot.png"))
 
-::: card
-```{r}
-#precip_plot
 ```
-:::
+
+### Precipitation
+```{r, echo=FALSE}
+#precip_plot
+grid::grid.raster(png::readPNG("plot-images/precip_plot.png"))
+
+```
+### Temperature
+```{r, echo=FALSE}
+#temperature
+grid::grid.raster(png::readPNG("plot-images/temp_plot.png"))
+
+```
+
