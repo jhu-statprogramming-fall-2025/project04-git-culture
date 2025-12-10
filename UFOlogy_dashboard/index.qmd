@@ -183,14 +183,58 @@ Insert Curtis' leaflet plots here
 
 # Health data
 
-
-
-
+**Years of Potential Life Lost vs. Weather Trends**
 
 ## {.tabset}
 ### YPLL
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/YPLL_plot.png"))
+```
+
+### Precipitation
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/precip_plot.png"))
+```
+
+### Temperature
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/temp_plot.png"))
+```
+
+## page break between tabset cards
+
+**Years of Potential Life Lost vs. UFO Sightings by County over the Years**
+
+## {.tabset}
+
+### YPLL
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/YPLL_plot.png"))
+```
+
+### 2004
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/sightings_2004_plot.png"))
+
+```
+
+### 2007
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/sightings_2007_plot.png"))
+
+```
+
+### 2009
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/sightings_2009_plot.png"))
+
+```
+
+### 2011
+```{r, echo=FALSE}
+grid::grid.raster(png::readPNG("plot-images/sightings_2011_plot.png"))
+
 ```
 
 ### 2013
@@ -201,21 +245,13 @@ grid::grid.raster(png::readPNG("plot-images/sightings_2013_plot.png"))
 
 ### 2014
 ```{r, echo=FALSE}
-#sightings_2014_plot
 grid::grid.raster(png::readPNG("plot-images/sightings_2014_plot.png"))
-
 ```
 
-### Precipitation
-```{r, echo=FALSE}
-#precip_plot
-grid::grid.raster(png::readPNG("plot-images/precip_plot.png"))
+## page break after tabs
 
-```
-### Temperature
-```{r, echo=FALSE}
-#temperature
-grid::grid.raster(png::readPNG("plot-images/temp_plot.png"))
+**Analysis?**
 
-```
+There seems to be a connection between the dryer, hotter areas of the state (southern portion) and higher numbers of UFO sightings. This is consistent between 2004 and 2014. 
+
 

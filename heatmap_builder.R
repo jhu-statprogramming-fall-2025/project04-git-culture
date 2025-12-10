@@ -287,15 +287,15 @@ ggsave(
   path = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/plot-images" # Specify a different directory
 )
 
-############################ 2013 sightings  #############################
+############################ 2011 sightings  #############################
 
 # 1. Load California counties shapefile
 counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
   mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
 
-# 2. Filter UFO data for 2013 and clean county names
-ufo_2013 <- ufo_data %>%
-  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
+# 2. Filter UFO data for 2011 and clean county names
+ufo_2011 <- ufo_data %>%
+  filter(Location.State == "CA", Dates.Sighted.Year == 2011) %>%
   mutate(
     County = str_replace(County, " COUNTY$", ""),  # remove suffix
     County = str_trim(County),
@@ -303,36 +303,45 @@ ufo_2013 <- ufo_data %>%
   )
 
 # 3. Aggregate sightings by county
-sightings_2013_by_county <- ufo_2013 %>%
+sightings_2011_by_county <- ufo_2011 %>%
   group_by(County) %>%
   summarise(sightings = n(), .groups = "drop")
 
 # 4. Join with shapefile
-map_df_2013 <- counties_sf %>%
-  left_join(sightings_2013_by_county, by = "County")
+map_df_2011 <- counties_sf %>%
+  left_join(sightings_2011_by_county, by = "County")
 
 # 5. Plot choropleth with counts
-sightings_2013_plot <- ggplot(map_df_2013) +
+sightings_2011_plot <- ggplot(map_df_2011) +
   geom_sf(aes(fill = sightings), color = NA) +
   geom_sf_text(aes(label = sightings), size = 3, color = "green", check_overlap = TRUE) +
   scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
   labs(
-    title = "UFO Sightings by County in California (2013)",
+    title = "UFO Sightings by County in California (2011)",
     fill = "Sightings"
   ) +
   neon_theme
 
-sightings_2013_plot
+sightings_2011_plot
 
-############################ 2013 sightings  #############################
+ggsave("sightings_2011_plot.png", 
+       plot = sightings_2011_plot,       # Specify the plot object (optional if it's the last one shown)
+       width = 8,           # Width in specified units
+       height = 6,          # Height in specified units
+       units = "in",        # Units (inches is default, others are "cm", "mm")
+       dpi = 300,           # Resolution (dots per inch, "retina" or "screen" are also options)
+       path = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/plot-images" # Specify a different directory
+)
+
+############################ 2009 sightings  #############################
 
 # 1. Load California counties shapefile
 counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
   mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
 
-# 2. Filter UFO data for 2013 and clean county names
-ufo_2013 <- ufo_data %>%
-  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
+# 2. Filter UFO data for 2009 and clean county names
+ufo_2009 <- ufo_data %>%
+  filter(Location.State == "CA", Dates.Sighted.Year == 2009) %>%
   mutate(
     County = str_replace(County, " COUNTY$", ""),  # remove suffix
     County = str_trim(County),
@@ -340,36 +349,46 @@ ufo_2013 <- ufo_data %>%
   )
 
 # 3. Aggregate sightings by county
-sightings_2013_by_county <- ufo_2013 %>%
+sightings_2009_by_county <- ufo_2009 %>%
   group_by(County) %>%
   summarise(sightings = n(), .groups = "drop")
 
 # 4. Join with shapefile
-map_df_2013 <- counties_sf %>%
-  left_join(sightings_2013_by_county, by = "County")
+map_df_2009 <- counties_sf %>%
+  left_join(sightings_2009_by_county, by = "County")
 
 # 5. Plot choropleth with counts
-sightings_2013_plot <- ggplot(map_df_2013) +
+sightings_2009_plot <- ggplot(map_df_2009) +
   geom_sf(aes(fill = sightings), color = NA) +
   geom_sf_text(aes(label = sightings), size = 3, color = "green", check_overlap = TRUE) +
   scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
   labs(
-    title = "UFO Sightings by County in California (2013)",
+    title = "UFO Sightings by County in California (2009)",
     fill = "Sightings"
   ) +
   neon_theme
 
-sightings_2013_plot
+sightings_2009_plot
 
-############################ 2013 sightings  #############################
+ggsave("sightings_2009_plot.png", 
+       plot = sightings_2009_plot,       # Specify the plot object (optional if it's the last one shown)
+       width = 8,           # Width in specified units
+       height = 6,          # Height in specified units
+       units = "in",        # Units (inches is default, others are "cm", "mm")
+       dpi = 300,           # Resolution (dots per inch, "retina" or "screen" are also options)
+       path = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/plot-images" # Specify a different directory
+)
+
+
+############################ 2007 sightings  #############################
 
 # 1. Load California counties shapefile
 counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
   mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
 
-# 2. Filter UFO data for 2013 and clean county names
-ufo_2013 <- ufo_data %>%
-  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
+# 2. Filter UFO data for 2007 and clean county names
+ufo_2007 <- ufo_data %>%
+  filter(Location.State == "CA", Dates.Sighted.Year == 2007) %>%
   mutate(
     County = str_replace(County, " COUNTY$", ""),  # remove suffix
     County = str_trim(County),
@@ -377,100 +396,35 @@ ufo_2013 <- ufo_data %>%
   )
 
 # 3. Aggregate sightings by county
-sightings_2013_by_county <- ufo_2013 %>%
+sightings_2007_by_county <- ufo_2007 %>%
   group_by(County) %>%
   summarise(sightings = n(), .groups = "drop")
 
 # 4. Join with shapefile
-map_df_2013 <- counties_sf %>%
-  left_join(sightings_2013_by_county, by = "County")
+map_df_2007 <- counties_sf %>%
+  left_join(sightings_2007_by_county, by = "County")
 
 # 5. Plot choropleth with counts
-sightings_2013_plot <- ggplot(map_df_2013) +
+sightings_2007_plot <- ggplot(map_df_2007) +
   geom_sf(aes(fill = sightings), color = NA) +
   geom_sf_text(aes(label = sightings), size = 3, color = "green", check_overlap = TRUE) +
   scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
   labs(
-    title = "UFO Sightings by County in California (2013)",
+    title = "UFO Sightings by County in California (2007)",
     fill = "Sightings"
   ) +
   neon_theme
 
-sightings_2013_plot
+sightings_2007_plot
 
-############################ 2013 sightings  #############################
-
-# 1. Load California counties shapefile
-counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
-  mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
-
-# 2. Filter UFO data for 2013 and clean county names
-ufo_2013 <- ufo_data %>%
-  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
-  mutate(
-    County = str_replace(County, " COUNTY$", ""),  # remove suffix
-    County = str_trim(County),
-    County = str_to_lower(County)                 # lowercase to match shapefile
-  )
-
-# 3. Aggregate sightings by county
-sightings_2013_by_county <- ufo_2013 %>%
-  group_by(County) %>%
-  summarise(sightings = n(), .groups = "drop")
-
-# 4. Join with shapefile
-map_df_2013 <- counties_sf %>%
-  left_join(sightings_2013_by_county, by = "County")
-
-# 5. Plot choropleth with counts
-sightings_2013_plot <- ggplot(map_df_2013) +
-  geom_sf(aes(fill = sightings), color = NA) +
-  geom_sf_text(aes(label = sightings), size = 3, color = "green", check_overlap = TRUE) +
-  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
-  labs(
-    title = "UFO Sightings by County in California (2013)",
-    fill = "Sightings"
-  ) +
-  neon_theme
-
-sightings_2013_plot
-
-############################ 2013 sightings  #############################
-
-# 1. Load California counties shapefile
-counties_sf <- counties(state = "CA", cb = TRUE, class = "sf") %>%
-  mutate(County = str_to_lower(NAME))  # lowercase for consistent matching
-
-# 2. Filter UFO data for 2013 and clean county names
-ufo_2013 <- ufo_data %>%
-  filter(Location.State == "CA", Dates.Sighted.Year == 2013) %>%
-  mutate(
-    County = str_replace(County, " COUNTY$", ""),  # remove suffix
-    County = str_trim(County),
-    County = str_to_lower(County)                 # lowercase to match shapefile
-  )
-
-# 3. Aggregate sightings by county
-sightings_2013_by_county <- ufo_2013 %>%
-  group_by(County) %>%
-  summarise(sightings = n(), .groups = "drop")
-
-# 4. Join with shapefile
-map_df_2013 <- counties_sf %>%
-  left_join(sightings_2013_by_county, by = "County")
-
-# 5. Plot choropleth with counts
-sightings_2013_plot <- ggplot(map_df_2013) +
-  geom_sf(aes(fill = sightings), color = NA) +
-  geom_sf_text(aes(label = sightings), size = 3, color = "green", check_overlap = TRUE) +
-  scale_fill_viridis_c(option = "magma", direction = -1, na.value = "grey90") +
-  labs(
-    title = "UFO Sightings by County in California (2013)",
-    fill = "Sightings"
-  ) +
-  neon_theme
-
-sightings_2013_plot
+ggsave("sightings_2007_plot.png", 
+  plot = sightings_2007_plot,       # Specify the plot object (optional if it's the last one shown)
+  width = 8,           # Width in specified units
+  height = 6,          # Height in specified units
+  units = "in",        # Units (inches is default, others are "cm", "mm")
+  dpi = 300,           # Resolution (dots per inch, "retina" or "screen" are also options)
+  path = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/plot-images" # Specify a different directory
+)
 
 ############################ 2004 sightings  #############################
 
@@ -509,4 +463,12 @@ sightings_2004_plot <- ggplot(map_df_2004) +
 
 sightings_2004_plot
 
+ggsave("sightings_2004_plot.png", 
+  plot = sightings_2004_plot,       # Specify the plot object (optional if it's the last one shown)
+  width = 8,           # Width in specified units
+  height = 6,          # Height in specified units
+  units = "in",        # Units (inches is default, others are "cm", "mm")
+  dpi = 300,           # Resolution (dots per inch, "retina" or "screen" are also options)
+  path = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/plot-images" # Specify a different directory
+)
 
