@@ -61,21 +61,35 @@ Our goal is to provide users the opportunity to explore interesting associations
 2.  **Compare** different trends to come to your own conclusions.
 3.  **Download** data and R-code from our github repository to recreate our analysis for yourselves.
 
+::: callout-tip
+**Data Access**
+
+Access raw data, analysis documentation, and plot visualization code from our github.
+
+Github Repository: <https://github.com/jferri3/biostats777-final-project-git-culture>
+:::
+
 ### Data Sources
 
 The data used in this dashboard came from the following sources:
 
 -   **UFO sightings** were obtained from CORGIS scraped and cleaned data that was originally collected by National UFO Reporting Center
 
-    -   This contained point level data of the site of reported UFO incident, as well as city, county, and type of observation
+    -   This contained point level data of the site of reported UFO incident, as well as city, county, and type of observation from 2004-2014
 
--   **BIgfoot Data** came from \[Insert Source\]
+-   **Bigfoot Data** scraped and cleaned data was obtained from Kaggle that was originally collected by the Bigfoot Field Researchers Organization.
+
+    -   This contained documented Bigfoot sightings between 2004-2014 as well as State, County and date.
+
+-   **Weather Data** was scraped from the National Oceanic and Atmospheric Administration (NOAA)
+
+    -   We extracted monthly average precipitation, and monthly average temperature data for California counties between 2004-2014.
 
 -   **YPLL** data came from the Robert Wood Johnson Foundations County Health Rankings
 
     -   This contained YPLL rates at the County level in California from 2010-2025
 
-# NUFORC
+# Temporal Variation of UFO Sightings
 
 ### Overview
 
@@ -108,21 +122,21 @@ The following data visualizations are based off of reported phenomenon documente
 ### Graphs {.tabset}
 
 #### Cumulative View
+
 ```{r, echo=FALSE}
 ggplot2::ggplot() + ggplot2::annotation_raster(png::readPNG("plot-images/cumulative_sightings.png"), 0, 1, 0, 1) + ggplot2::theme_void()
 ```
 
 #### By Shape
+
 ```{r, echo=FALSE, fig.show='asis'}
 ## quarto dashboard doesn't render the plot b/c it's html and isn't read as a figure. use ggplot OR wrap it in a grid to make it a figure object
 grid::grid.raster(png::readPNG("plot-images/UFOsightings_time_space.png"))
 
 ```
 
-::::: grid
+:::: grid
 ::: g-col-6
-
-
 ### Day vs Night Sightings
 
 **When do UFOs Appear?** Explore how time of day influences the likelihood of spotting a UFO.
@@ -131,7 +145,7 @@ grid::grid.raster(png::readPNG("plot-images/UFOsightings_time_space.png"))
 grid::grid.raster(png::readPNG("plot-images/day_night_UFOsightings.png"))
 ```
 :::
-:::::
+::::
 
 ## Break to separate out Blocks 2 and 3
 
@@ -162,32 +176,32 @@ grid::grid.raster(png::readPNG("plot-images/monthly_sightings.png"))
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/seasonal_sightings.png"))
 ```
-::::: grid
+
+:::: grid
 ::: g-col-6
-## County Observations 
+## County Observations
 
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/top15_counties.png"))
 ```
 :::
+::::
 
-:::::
-
-::::: grid
+:::: grid
 ::: g-col-6
 ## Duration
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/UFOencounter_duration_shape.png"))
 ```
 :::
+::::
 
-:::::
 # UFO Maps
 
 ## UFO sightings, bigfoot, and precipitation
 
 ::: {layout-ncol="1"}
-
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 # Load and prepare data
 df <- read_csv("nuforc_county_weather_bigfoot_with_census_population.csv") %>%
@@ -328,7 +342,8 @@ orig_map
 
 **Years of Potential Life Lost vs. Weather Trends**
 
-## {.tabset}
+##  {.tabset}
+
 ### YPLL
 
 ```{r, echo=FALSE}
@@ -336,11 +351,13 @@ grid::grid.raster(png::readPNG("plot-images/YPLL_plot.png"))
 ```
 
 ### Precipitation
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/precip_plot.png"))
 ```
 
 ### Temperature
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/temp_plot.png"))
 ```
@@ -349,44 +366,51 @@ grid::grid.raster(png::readPNG("plot-images/temp_plot.png"))
 
 **Years of Potential Life Lost vs. UFO Sightings by County over the Years**
 
-## {.tabset}
+##  {.tabset}
 
 ### YPLL
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/YPLL_plot.png"))
 ```
 
 ### 2004
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2004_plot.png"))
 
 ```
 
 ### 2007
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2007_plot.png"))
 
 ```
 
 ### 2009
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2009_plot.png"))
 
 ```
 
 ### 2011
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2011_plot.png"))
 
 ```
 
 ### 2013
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2013_plot.png"))
 
 ```
 
 ### 2014
+
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/sightings_2014_plot.png"))
 ```
@@ -395,6 +419,4 @@ grid::grid.raster(png::readPNG("plot-images/sightings_2014_plot.png"))
 
 **Analysis?**
 
-There seems to be a connection between the dryer, hotter areas of the state (southern portion) and higher numbers of UFO sightings. This is consistent between 2004 and 2014. 
-
-
+There seems to be a connection between the dryer, hotter areas of the state (southern portion) and higher numbers of UFO sightings. This is consistent between 2004 and 2014.
