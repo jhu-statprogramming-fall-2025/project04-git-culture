@@ -1,5 +1,17 @@
-sources
+The National UFO Reporting Center Online Database. (2021, September 6). The National UFO Reporting Center. https://nuforc.org/databank/​
 
-city county data: https://data.transportation.gov/Railroads/State-County-and-City-FIPS-Reference-Table/eek5-pv8d/about_data
+Saad, L. (2021, August 20). Larger Minority in U.S. Says Some UFOs Are Alien Spacecraft. Gallup. https://news.gallup.com/poll/353420/larger-minority-says-ufos-alien-spacecraft.aspx​
 
-average county weather (temp & precip, monthly) data: https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/county/time-series/service-api
+Worsham, C. M., Zimerman, A., Woo, J., Shaw, D., & Jena, A. B. (2023). Association between UFO sightings and emergency department visits. The American Journal of Emergency Medicine, 66, 164–166. https://doi.org/10.1016/j.ajem.2023.01.022​
+
+Menezes, D. (2025, May 1). Nearly half of US voters believe government hiding UFO evidence: Survey [Text]. The Hill. https://thehill.com/policy/defense/5276225-americans-ufo-evidence-survey-decision-desk-hq-newsnation/​
+
+GreatImposter. (2017). Bfro Bigfoot sighting report. Retrieved from https://www.kaggle.com/datasets/chemcnabb/bfro-bigfoot-sighting-report ​
+
+UFO sightings CSV file. (n.d.). Retrieved from https://corgis-edu.github.io/corgis/csv/ufo_sightings/ ​
+
+State, county and city FIPS reference table: Department of Transportation - Data Portal. (2025). Retrieved from https://data.transportation.gov/Railroads/State-County-and-City-FIPS-Reference-Table/eek5-pv8d/about_data ​
+
+NCEI.Monitoring.Info@noaa.gov. (n.d.). Climate at a glance. Retrieved from https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/ ​
+
+How healthy is your county?: County Health Rankings. (n.d.). Retrieved from https://www.countyhealthrankings.org/
