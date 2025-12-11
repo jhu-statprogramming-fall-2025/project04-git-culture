@@ -1,6 +1,6 @@
 ---
 title: "It's a bird, it's a plane - no it's a UFO!"
-format: 
+format:
   dashboard:
     scrolling: true
 author: Git Culture
@@ -10,7 +10,7 @@ author: Git Culture
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 
 # Replace root directory path with wherever github repo is locally stored for user
-knitr::opts_knit$set(root.dir = "C:/Users/anany/OneDrive/Hopkins/PhD/Year 3/Statistical Programming/Final Project/biostats777-final-project-git-culture")
+knitr::opts_knit$set(root.dir = "/users/jacquelineferri/Desktop/sppw/biostats777-final-project-git-culture/")
 
 library(dplyr)
 library(ggplot2)
@@ -37,7 +37,7 @@ This dashboard provides the opportunity to explore supernatural sightings and th
 
 This dashboard was created by Sonia Dhawan, Ananya Bhaktaram, Jacqueline Ferris and Curtis Ehlert in fulfillment of Project 4 for PH.140.777, Statistical Programming Paradigms and Workflows at the Johns Hopkins Bloomberg School of Public Health.
 
-::: callout.warning
+::: {.callout-warning}
 ## Warning: This dashboard does not represent real scientific findings!
 
 This dashboard was created in December 2025 as a practice of programmatic skills learned in PH.140.777 and does not represent real scientific insight into the credibility of UFO or Bigfoot sightings or any potential associations with health related phenomena.
@@ -346,17 +346,28 @@ orig_map
 
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/plot_bigfoot_vs_ufo.png"))
-
 ```
+## 
+**UFO vs. Bigfoot plot per capita (log -transformed):** Correlation is observed between county Bigfoot and UFO sightings per capita when log-transformed
+
+## break between cards
 
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/plot_ufo_vs_precip.png"))
 ```
+## 
+**Precipitation vs UFO plot per capita:** Little correlation is observed between county precipitation and UFO sightings, per capita
 
+
+## break between cards
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/plot_bigfoot_vs_ufo_percap.png"))
 ```
+## 
+**Bigfoot vs UFO plot per capita:** Correlation is observed, but outliers inflate findings.
 
+
+## break between cards
 ```{r, echo=FALSE}
 grid::grid.raster(png::readPNG("plot-images/plot_ufo_vs_precip_percap.png"))
 ```
@@ -443,6 +454,43 @@ grid::grid.raster(png::readPNG("plot-images/sightings_2014_plot.png"))
 ```
 
 ## page break after tabs
+
+# Machine Learning 
+
+**Title:** Machine Learning Workflow: Data-to-Model Paradigm to Predict UFO Sightings (Counts and Average Duration) At the County Level in California
+
+**Data collection:** We used a functional programming paradigm to read in and wrangle the data, summarizing monthly average sighting duration and total sighting count for each county in California from January 2004-December 2014, along with the average temperature and average precipitation.
+
+**Feature engineering:** We encoded a categorical variable for season, in order to assess whether the outcomes of interest are more impacted by linear time or by season.
+
+**Model training and evaluation:** After removing missing data and outliers, we 80/20 split our data into a training data set and a test data set. We then trained two random forest models for each outcome of interest: average sighting duration and total number of sightings per county per month from January 2004 to December 2014. Each of the two random forest models incorporated a different time metric (month/year or season).
+
+* Model 1: Average sighting duration = year + month + county + average temperature + average precipitation + total number of sightings
+
+* Model 2:  Average sighting duration = season + county + average temperature + average precipitation + total number of sightings 
+
+* Model 3: Total number of sightings = year + month + county + average temperature + average precipitation
+
+* Model 4: Total number of sightings = season + county + average temperature + average precipitation
+
+We only include total sighting count as a predictor for average sighting duration (not vice versa) to account for the fact that very high outliers in the average sighting duration data might be the result of low counts that are also highly inaccurate. Most of the outliers for the average sighting duration data were based on one sighting.
+
+**Model deployment:** After training the models, we then tested them. The accuracy metrics are listed in the table. We ran one linear regression model for each outcome (using season as the time metric since those models were slightly more accurate than the ones that used month and year as the time metric) just to see if there would be a notable difference. 
+
+##
+
+```{r, echo=FALSE}
+#| title: "**Results:**"
+
+grid::grid.raster(png::readPNG("plot-images/Metrics_table.png"))
+```
+##
+
+**Discussion:** For each outcome, all three models were similar in terms of accuracy, which tells us that linear regression is probably the way to go; random forest probably would likely lead to overfitting. 
+
+All three models were not very accurate for the average sighting duration outcome, accounting for only ~0.3-0.5% of the variation in the outcome. 
+
+The model was more accurate for the sighting count outcome, accounting for ~50% of the variation in the outcome. The random forest model that incorporated season had more predictive accuracy for sighting count than the model that used the month and year time metric. The RMSE tells us that the linear model's predictions of total monthly sightings are, on average, about 1.36 counts off from the truth.
 
 # Analysis & Interpretation
 

@@ -1,0 +1,324 @@
+---
+format: html
+---
+
+# Machine Learning Workflow: Data-to-Model Paradigm to Predict UFO Sightings (Counts and Average Duration) At the County Level in California
+
+```{r set up}
+#| include: false
+
+library(ranger)
+library(tidymodels)
+library(readxl) 
+library(dplyr)
+library(tibble) 
+library(lubridate) 
+library(ggplot2)
+library(purrr)
+library(htmlTable)
+library(tableHTML)
+library(webshot)
+
+```
+
+## Data Collection & Feature Engineering
+
+Here, we demonstrate a **functional programming paradigm** to read in and wrangle the data, summarizing average sighting duration and total sighting count for each county in California from January 2004-December 2014, along with the average temperature and average precipitation.
+
+```{r data collection & feature engineering}
+#| warning: false
+#| error: false
+#| message: false
+
+county_weather <- read.csv("nuforc_county_weather.csv")
+
+colnames(county_weather)[10] <- 'sight_year'
+colnames(county_weather)[11] <- 'sight_month'
+colnames(county_weather)[6] <- 'duration'
+
+# Calculate average sighting duration (in minutes) per month (2004-2014)  for each county in California
+
+group_data <- county_weather %>% group_by(County,sight_year,sight_month) %>% 
+  group_map(~mean(.x$duration))
+
+# Create data frame from the output from the preceding line
+
+group_data_df <- tibble(avg_dur = sapply(group_data, `[[`, 1))
+
+# Create data frame for grouped (month/year & county) metrics
+
+group_unique <- county_weather %>% distinct(County,sight_year,sight_month)
+
+group_unique <- group_unique[with(group_unique, order(County,sight_year,sight_month)), ]
+
+# Combine the 2 data frames
+
+model_data <- cbind(group_unique,group_data_df)
+
+# Rename county column (for consistency)
+
+colnames(model_data)[1] <- 'county'
+
+# Create column to count number of sightings per county per month per year
+
+county_weather$count <- 1
+
+# Calculate total sighting count per month (2004-2014) for each county in California
+
+group_data <- county_weather %>% group_by(County,sight_year,sight_month) %>% 
+  group_map(~sum(.x$count))
+
+# Create data frame from the output from the preceding line
+
+group_data_df <- tibble(sighting_count = sapply(group_data, `[[`, 1))
+
+# Create data frame for grouped (month/year & county) metrics
+
+model_data <- cbind(model_data,group_data_df)
+
+# Rename county column (for consistency)
+
+colnames(county_weather)[2] <- 'county'
+
+# Combine all metrics, including average monthly temperature and average precipitation for each CA county from January 2004-December 2014.
+
+model_data <- model_data %>% left_join(select(county_weather,county,sight_year,sight_month,Avg_Precip_Month_County,Avg_Temp_Month_County),by=c("county"="county","sight_year"="sight_year","sight_month"="sight_month"),multiple="first")
+
+# Rename columns (for consistency)
+
+model_data <- model_data %>% rename(year=sight_year,month=sight_month,avg_pcp=Avg_Precip_Month_County,avg_temp=Avg_Temp_Month_County)
+
+# Create new column for month and year
+
+model_data$mo_yr <- mdy(paste(model_data$month,model_data$year,sep="-"))
+
+# Create column for season
+
+model_data$season <- ifelse(model_data$month==12 | model_data$month==1 | model_data$month==2, "Winter",
+    ifelse(model_data$month>=3 & model_data$month<=5, "Spring",
+      ifelse(model_data$month>=6 & model_data$month<=8, "Summer","Fall")))
+
+# Remove NAs from the county column
+
+model_data <- model_data[!is.na(model_data$county),]
+
+# Get rid of outliers in the data
+
+model_data <- model_data[model_data$avg_dur<=88000,]
+
+```
+
+## Model Training and Evaluation
+
+We will be using a **supervised learning paradigm**, in which we train a model using the NUFORC UFO sighting data for California (2004-2014) to predict [total UFO sighting counts]{.underline} and [average sighting duration]{.underline} in California counties.
+
+The predictors include: [county]{.underline}, [time(month/year or season)]{.underline}, and weather data - [average precipitation]{.underline}, and [average temperature]{.underline} (for each combination of county, month, and year).
+
+We'll be training and evaluating 4 models.
+
+### Model 1: predicting average duration using month & year as time metric
+
+```{r model 1}
+#| warning: false
+#| error: false
+#| message: false
+
+# Split the data
+
+set.seed(14658362)
+data_split <- initial_split(model_data, prop = 0.8)
+data_train <- training(data_split)
+data_test  <- testing(data_split)
+
+# MODEL 1 - outcome: average duration & time: month/year
+
+spec_ad_my <- rand_forest() %>%
+  set_engine("ranger") %>%
+  set_mode("regression") # because outcome is continuous
+
+# Fit the model using random forests
+
+fit_ad_my <- spec_ad_my %>%
+  fit(avg_dur ~ year + month + county + avg_temp + avg_pcp + sighting_count, 
+      data = data_train)
+
+# Predict average sighting duration for each county, month, year in our dataset 
+preds_ad_my <- predict(fit_ad_my, data_test) %>% 
+  bind_cols(data_test)
+
+# Assess accuracy of the model when compared to the training dataset
+
+metrics_ad_my <- preds_ad_my %>%
+  metrics(truth = avg_dur, estimate = .pred)
+
+```
+
+### Model 2: predicting average duration using season as time metric
+
+```{r model 2}
+#| warning: false
+#| error: false
+#| message: false
+
+# MODEL 2 - outcome: average duration & time: season
+
+spec_ad_s <- rand_forest() %>%
+  set_engine("ranger") %>%
+  set_mode("regression") # because outcome is continuous
+
+# Fit the model using random forests
+
+fit_ad_s <- spec_ad_s %>%
+  fit(avg_dur ~ season + county + avg_temp + avg_pcp + sighting_count, 
+      data = data_train)
+
+# Predict average sighting duration for each county, month, year in our dataset 
+
+preds_ad_s <- predict(fit_ad_s, data_test) %>% 
+  bind_cols(data_test)
+
+# Assess accuracy of the model when compared to the training dataset
+
+metrics_ad_s <- preds_ad_s %>%
+  metrics(truth = avg_dur, estimate = .pred)
+
+```
+
+### Model 3: predicting total sighting counts using month & year as time metric
+
+```{r model 3}
+#| warning: false
+#| error: false
+#| message: false
+
+# MODEL 3 - outcome: sighting counts & time: month/year
+
+spec_sc_my <- rand_forest() %>%
+  set_engine("ranger") %>%
+  set_mode("regression") # because outcome is continuous
+
+# Fit the model using random forests
+
+fit_sc_my <- spec_sc_my %>%
+  fit(sighting_count ~ year + month + county + avg_temp + avg_pcp, 
+      data = data_train)
+
+# Predict average sighting duration for each county, month, year in our dataset 
+preds_sc_my <- predict(fit_sc_my, data_test) %>% 
+  bind_cols(data_test)
+
+# Assess accuracy of the model when compared to the training dataset
+
+metrics_sc_my <- preds_sc_my %>%
+  metrics(truth = sighting_count, estimate = .pred)
+
+```
+
+### Model 4: predicting total sighting counts using season as time metric
+
+```{r model 4}
+#| warning: false
+#| error: false
+#| message: false
+
+# MODEL 4 - outcome: sighting counts & time: season
+
+spec_sc_s <- rand_forest() %>%
+  set_engine("ranger") %>%
+  set_mode("regression") # because outcome is continuous
+
+# Fit the model using random forests
+
+fit_sc_s <- spec_sc_s %>%
+  fit(sighting_count ~ season + county + avg_temp + avg_pcp, 
+      data = data_train)
+
+# Predict average sighting duration for each county, month, year in our dataset 
+preds_sc_s <- predict(fit_sc_s, data_test) %>% 
+  bind_cols(data_test)
+
+# Assess accuracy of the model when compared to the training dataset
+
+metrics_sc_s <- preds_sc_s %>%
+  metrics(truth = sighting_count, estimate = .pred)
+
+```
+
+### Linear Regression Models
+
+Testing a linear regression approach below to see how it compares to random forest. Using seasonality (instead of month & year) since that time metric seems to yield a more accurate model above.
+
+```{r regression approach}
+#| warning: false
+#| error: false
+#| message: false
+
+# Fit model 1 - average duration as the outcome
+
+train_lm_ad <- 
+  linear_reg() %>% 
+  set_engine("lm") %>% 
+  fit(avg_dur ~ season + county + avg_temp + avg_pcp + sighting_count, data = data_train)
+
+# Evaluate model
+
+test_lm_ad <- predict(train_lm_ad, data_test) %>%
+  bind_cols(data_test)
+
+metrics_lm_ad <- test_lm_ad %>%
+  metrics(truth = avg_dur, estimate = .pred)
+
+# Fit model 2 - sighting count as the outcome
+
+train_lm_sc <- 
+  linear_reg() %>% 
+  set_engine("lm") %>% 
+  fit(sighting_count ~ season + county + avg_temp + avg_pcp, data = data_train)
+
+# Evaluate model
+
+test_lm_sc <- predict(train_lm_sc, data_test) %>%
+  bind_cols(data_test)
+
+metrics_lm_sc <- test_lm_sc %>%
+  metrics(truth = sighting_count, estimate = .pred)
+
+```
+
+## Create tables for dashboard
+
+```{r tables}
+#| warning: false
+#| error: false
+
+# Combine the data frames
+
+table_df <- rbind(metrics_ad_my,metrics_ad_s,metrics_lm_ad,metrics_sc_my,metrics_sc_s,metrics_lm_sc)
+
+model <- c("random forest", "random forest", "linear", "random forest", "random forest", "linear")
+
+outcome <- c("average sighting duration", "average sighting duration", "average sighting duration", "sighting count", "sighting count", "sighting count")
+
+time_metric <- c("mo/yr", "season", "season", "mo/yr", "season", "season")
+
+table_col <- data.frame(model=model,outcome=outcome,time_metric=time_metric)
+
+table_col <- table_col %>% slice(rep(1:n(), each = 3))
+
+table_df <- cbind(table_col,table_df) %>% rename(metric=.metric,estimate=.estimate,estimator=.estimator)
+
+table_df_pivot <- pivot_wider(table_df,names_from=metric,values_from=estimate) %>% mutate(across(c('rmse', 'rsq', 'mae'), round, 3))
+
+final_table <- htmlTable(table_df_pivot[,c(-2,-4)], rnames=FALSE, rgroup=c("Average Sighting Duration", "Sighting Count"), n.rgroup=c(3,3), header=c("Model", "Time Metric","RMSE","RSQ","MAE"), caption="Accuracy Metrics for All Models Predicting Average Sighting Duration & Sighting Count", tfoot="RMSE: Root Mean Squared Error, RSQ: R-Squared, MAE: Mean Absolute Error\nmo/yr: month & year")
+
+```
+
+Alternate way of creating the table:
+
+```{r table alt}
+
+final_table2 <- tableHTML(table_df_pivot[,c(-2,-4)], rownames=FALSE, row_groups=list(c(3,3), c("Average Sighting Duration", "Sighting Count")), headers=c("Model", "Time Metric","RMSE","RSQ","MAE"), caption="Accuracy Metrics for All Models Predicting Average Sighting Duration & Sighting Count", footer="RMSE: Root Mean Squared Error, RSQ: R-Squared, MAE: Mean Absolute Error, mo/yr: month & year", border=0, widths=c(250,150,100,100,100,100)) 
+
+final_table2 %>% add_css_row(css = list('text-align', 'center'))
+
+```
