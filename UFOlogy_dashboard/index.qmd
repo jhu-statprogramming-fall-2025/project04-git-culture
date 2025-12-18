@@ -95,7 +95,7 @@ The data used in this dashboard came from the following sources:
 
 ### Overview
 
-The National UFO Reporting Center (NUFORC) has documented over **\[X,XXX\] UFO reports** between 1995-2018. The following analysis shows a **significant increase in UFO sightings over time**, with distinct, temporal, environmental and phenomenological differences.
+The National UFO Reporting Center (NUFORC) has documented over **158,526 UFO reports** between 1995-2018. The following analysis shows a **significant increase in UFO sightings over time**, with distinct, temporal, environmental and phenomenological differences.
 
 The United States has the highest overall number of reported UFO sightings of any country in the world. Moreover, California has the highest concentration of reported UFO sightings of any state in the U.S. It's diverse, geography, climate, and combination of rural and urban areas provides an ideal location to explore how UFO reports may be influenced by a variety of factors.
 
@@ -208,7 +208,7 @@ grid::grid.raster(png::readPNG("plot-images/UFOencounter_duration_shape.png"))
 ::: {layout-ncol="1"}
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 # Load and prepare data
-df <- read_csv("nuforc_county_weather_bigfoot_with_census_population.csv") %>%
+df <- read_csv("datasets/nuforc_county_weather_bigfoot_with_census_population.csv") %>%
   mutate(
     County = str_trim(County),
     County = str_to_title(County),
